@@ -1,0 +1,4 @@
+interface:
+  display_name: "건보 취업내역 검증"
+  short_description: "건강보험 이력과 취업·창업 기관 및 날짜를 대조합니다"
+  default_prompt: "Use $health-insurance-employment-check to compare a 건강보험자격득실확인서 with an ITRC 성과 배출인력 workbook."
