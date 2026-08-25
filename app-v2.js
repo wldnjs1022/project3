@@ -248,7 +248,11 @@ function compare(record, rows) {
   if (!record.organization || !record.acquiredDate) return { status: "확인 필요", note: "PDF 자동 판독 실패", record, row: null, orgMatch: null, dateMatch: null };
   let candidates = record.name ? rows.filter((row) => normalizeOrg(row.name) === normalizeOrg(record.name)) : rows;
   const nameFound = candidates.length > 0;
-  if (record.name && !nameFound) return { status: "엑셀 미등록", note: "PDF에서 발견했지만 엑셀에 같은 성명이 없음", record, row: null, orgMatch: null, dateMatch: null };
+  if (record.name && !nameFound) {
+    const exactEvidence = rows.filter((row) => normalizeOrg(row.organization) === normalizeOrg(record.organization) && normalizeDate(row.date) === normalizeDate(record.acquiredDate));
+    if (exactEvidence.length === 1) return { status: "이름 확인 필요", note: "기관명·일자는 일치하지만 PDF 성명 판독을 확인해주세요", record, row: exactEvidence[0], orgMatch: true, dateMatch: true };
+    return { status: "엑셀 미등록", note: "PDF에서 발견했지만 엑셀에 같은 성명이 없음", record, row: null, orgMatch: null, dateMatch: null };
+  }
   if (!candidates.length) candidates = rows;
   const scored = candidates.map((row) => ({ row, orgMatch: normalizeOrg(row.organization) === normalizeOrg(record.organization), dateMatch: normalizeDate(row.date) === normalizeDate(record.acquiredDate) })).map((entry) => ({ ...entry, score: Number(entry.orgMatch) + Number(entry.dateMatch) })).sort((a, b) => b.score - a.score);
   if (!scored.length) return { status: "확인 필요", note: "엑셀 비교 대상 없음", record, row: null, orgMatch: null, dateMatch: null };
