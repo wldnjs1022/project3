@@ -1,0 +1,8 @@
+.git
+.openai
+.vercel
+dist
+health-insurance-employment-check
+server.mjs
+server-entry.js
+wrangler.jsonc
