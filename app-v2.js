@@ -193,15 +193,43 @@ async function parsePdf(file) {
     items.sort((a, b) => Math.abs(b.y - a.y) > 3 ? b.y - a.y : a.x - b.x);
     pageTexts.push(items.map((item) => item.text).join(" "));
   }
-  const text = pageTexts.join(" ").replace(/\s+/g, " ");
+  let text = pageTexts.join(" ").replace(/\s+/g, " ");
+  let ocrUsed = false;
+  let parsed = parseInsuranceText(text, detectedName);
+  if (!parsed.row && window.Tesseract) {
+    ocrUsed = true;
+    const ocrPages = [];
+    for (let number = 1; number <= pdf.numPages; number += 1) {
+      const page = await pdf.getPage(number);
+      const viewport = page.getViewport({ scale: 2.2 });
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
+      await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+      const result = await Tesseract.recognize(canvas, "kor+eng", {
+        logger: (message) => {
+          if (message.status === "recognizing text") elements.processingText.textContent = `OCR 판독 중 · ${file.name} · ${Math.round((message.progress || 0) * 100)}%`;
+        },
+        workerPath: "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js",
+        langPath: "https://tessdata.projectnaptha.com/4.0.0"
+      });
+      ocrPages.push(result.data.text || "");
+    }
+    text = ocrPages.join(" ").replace(/\s+/g, " ");
+    parsed = parseInsuranceText(text, detectedName);
+  }
+  return { name: parsed.name, organization: parsed.row?.[1]?.trim() || "", acquiredDate: parsed.row ? normalizeDate(parsed.row[2]) : "", subscriberType: "직장가입자", documentTypeValid: parsed.documentTypeValid, extractionReliable: Boolean(parsed.documentTypeValid && parsed.row && parsed.name), ocrUsed };
+}
+
+function parseInsuranceText(text, knownName = "") {
   const compact = text.replace(/\s+/g, "");
-  const documentTypeValid = compact.includes("건강보험자격득실확인서") || compact.includes("건강보험자격득실내역");
-  const row = compact.match(/직장가입자(.{2,80}?)(20\d{2}[.\/-]\d{1,2}[.\/-]\d{1,2})/);
-  return { name: detectedName, organization: row?.[1]?.trim() || "", acquiredDate: row ? normalizeDate(row[2]) : "", subscriberType: "직장가입자", documentTypeValid, extractionReliable: Boolean(documentTypeValid && row && detectedName) };
+  const documentTypeValid = compact.includes("건강보험자격득실확인서") || compact.includes("건강보험자격득실내역") || compact.includes("건강보험자격득실");
+  const name = knownName || compact.match(/성명(?:주민등록번호)?([가-힣]{2,5})(?=\d{6}|[*]{2,})/)?.[1] || compact.match(/성명([가-힣]{2,5})/)?.[1] || "";
+  const row = compact.match(/직장가입자(.{2,100}?)(20\d{2}[.\/-]\d{1,2}[.\/-]\d{1,2})/);
+  return { name, row, documentTypeValid };
 }
 
 function populateReviews() {
-  elements.reviewList.innerHTML = state.pdfRecords.map((record, index) => `<article class="review-item ${record.extractionReliable ? "" : "needs-review"}" data-index="${index}"><div class="review-item-head"><strong>${escapeHtml(record.fileName)}</strong><span>${record.extractionReliable ? "자동 판독" : "확인 필요"}</span></div><div class="field-grid"><label>성명<input data-field="name" type="text" value="${escapeHtml(record.name)}" placeholder="예: 홍길동" /></label><label>사업장 명칭<input data-field="organization" type="text" value="${escapeHtml(record.organization)}" placeholder="예: 정보통신기획평가원" /></label><label>자격 취득일<input data-field="acquiredDate" type="date" value="${escapeHtml(record.acquiredDate)}" /></label><label>가입자 구분<select data-field="subscriberType"><option>직장가입자</option><option>지역가입자</option><option>피부양자</option></select></label></div></article>`).join("");
+  elements.reviewList.innerHTML = state.pdfRecords.map((record, index) => `<article class="review-item ${record.extractionReliable ? "" : "needs-review"}" data-index="${index}"><div class="review-item-head"><strong>${escapeHtml(record.fileName)}</strong><span>${record.extractionReliable ? (record.ocrUsed ? "OCR 판독" : "자동 판독") : "확인 필요"}</span></div><div class="field-grid"><label>성명<input data-field="name" type="text" value="${escapeHtml(record.name)}" placeholder="예: 홍길동" /></label><label>사업장 명칭<input data-field="organization" type="text" value="${escapeHtml(record.organization)}" placeholder="예: 정보통신기획평가원" /></label><label>자격 취득일<input data-field="acquiredDate" type="date" value="${escapeHtml(record.acquiredDate)}" /></label><label>가입자 구분<select data-field="subscriberType"><option>직장가입자</option><option>지역가입자</option><option>피부양자</option></select></label></div></article>`).join("");
   const uncertain = state.pdfRecords.filter((record) => !record.extractionReliable).length;
   elements.reviewMessage.textContent = `PDF ${state.pdfRecords.length}개를 읽었습니다.${uncertain ? ` ${uncertain}개는 자동 판독값을 확인해주세요.` : " 모든 자동 판독값을 확인해주세요."}`;
 }
