@@ -4,6 +4,7 @@
   "private": true,
   "description": "건강보험자격득실확인서와 ITRC 성과 배출인력 엑셀 검증 랜딩 페이지",
   "scripts": {
+    "dev": "node server.mjs",
     "start": "node server.mjs",
     "build": "node build.mjs"
   }
