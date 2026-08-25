@@ -1,12 +1,12 @@
 /* global pdfjsLib, XLSX, fflate */
-const state = { pdfFiles: [], xlsxFile: null, pdfRecords: [], workbookRows: [] };
+const state = { pdfFiles: [], xlsxFile: null, pdfRecords: [], workbookRows: [], results: [] };
 const $ = (id) => document.getElementById(id);
 const elements = {
   pdfInput: $("pdfInput"), xlsxInput: $("xlsxInput"), pdfDrop: $("pdfDrop"), xlsxDrop: $("xlsxDrop"),
   pdfState: $("pdfState"), xlsxState: $("xlsxState"), verifyButton: $("verifyButton"), processing: $("processing"),
   processingText: $("processingText"), reviewPanel: $("reviewPanel"), reviewList: $("reviewList"),
   resultsPanel: $("resultsPanel"), reviewMessage: $("reviewMessage"), compareButton: $("compareButton"),
-  resetButton: $("resetButton"), uploadHint: $("uploadHint")
+  resetButton: $("resetButton"), uploadHint: $("uploadHint"), downloadResultButton: $("downloadResultButton")
 };
 
 if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = "vendor/pdf.worker.min.js";
@@ -264,6 +264,7 @@ function compare(record, rows) {
 }
 
 function renderBatch(results) {
+  state.results = results;
   const matched = results.filter((result) => result.status === "일치").length;
   const linkedRows = new Set(results.filter((result) => result.row).map((result) => result.row.rowNumber));
   const uncoveredRows = state.workbookRows.filter((row) => !linkedRows.has(row.rowNumber));
@@ -278,12 +279,25 @@ function renderBatch(results) {
   $("resultBody").innerHTML = pdfRows + missingRows;
 }
 
+elements.downloadResultButton.addEventListener("click", () => {
+  if (!window.XLSX || !state.results.length) return;
+  const rows = state.results.map((result) => {
+    const row = result.row || {};
+    return { "성명": row.name || result.record.name || "", "AA 기관명": row.organization || "", "PDF 사업장명": result.record.organization || "", "기관 판정": result.orgMatch === true ? "일치" : result.orgMatch === false ? "불일치" : result.status === "엑셀 미등록" ? "엑셀 미등록" : "확인 필요", "AB 직위": row.position || "", "AC 취업/창업일자": row.date || "", "PDF 취득일": result.record.acquiredDate || "", "일자 판정": result.dateMatch === true ? "일치" : result.dateMatch === false ? "불일치" : result.status === "엑셀 미등록" ? "엑셀 미등록" : "확인 필요", "AD 담당업무": row.duty || "", "AE 고용형태": row.employmentType || "", "종합 판정": result.status, "비고": result.note || "", "PDF 파일": result.record.fileName || "" };
+  });
+  state.workbookRows.filter((row) => !new Set(state.results.filter((result) => result.row).map((result) => result.row.rowNumber)).has(row.rowNumber)).forEach((row) => rows.push({ "성명": row.name || "", "AA 기관명": row.organization || "", "PDF 사업장명": "", "기관 판정": "PDF 없음", "AB 직위": row.position || "", "AC 취업/창업일자": row.date || "", "PDF 취득일": "", "일자 판정": "PDF 없음", "AD 담당업무": row.duty || "", "AE 고용형태": row.employmentType || "", "종합 판정": "PDF 없음", "비고": "엑셀에는 있으나 연결된 PDF가 없습니다.", "PDF 파일": "" }));
+  const workbook = XLSX.utils.book_new();
+  const sheet = XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(workbook, sheet, "검증 결과");
+  XLSX.writeFile(workbook, `건강보험_취업일자_검증결과_${new Date().toISOString().slice(0, 10)}.xlsx`);
+});
+
 function normalizeOrg(value) { return String(value || "").normalize("NFKC").toLowerCase().trim().replace(/^(?:주식회사|\(주\)|㈜)|(?:주식회사|\(주\)|㈜)$/g, "").replace(/[\s\-_.·,()]/g, ""); }
 function normalizeDate(value) { if (!value) return ""; if (value instanceof Date && !Number.isNaN(value.valueOf())) return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`; if (typeof value === "number" || /^\d+(\.\d+)?$/.test(String(value))) { const serial = Number(value); if (serial > 20000 && serial < 100000) { const date = new Date(Date.UTC(1899, 11, 30) + serial * 86400000); return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`; } } const raw = String(value).trim().replace(/[./]/g, "-").replace(/년/g, "-").replace(/월/g, "-").replace(/일/g, "").replace(/\s/g, ""); const match = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/) || raw.match(/^(\d{4})(\d{2})(\d{2})$/); return match ? `${match[1]}-${match[2].padStart(2, "0")}-${match[3].padStart(2, "0")}` : ""; }
 function escapeHtml(value) { return String(value).replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char])); }
 
 elements.resetButton.addEventListener("click", () => {
-  state.pdfFiles = []; state.xlsxFile = null; state.pdfRecords = []; state.workbookRows = [];
+  state.pdfFiles = []; state.xlsxFile = null; state.pdfRecords = []; state.workbookRows = []; state.results = [];
   elements.pdfInput.value = ""; elements.xlsxInput.value = ""; elements.pdfDrop.classList.remove("ready", "error"); elements.xlsxDrop.classList.remove("ready", "error");
   elements.pdfState.innerHTML = "파일 선택 <b>+</b>"; elements.xlsxState.innerHTML = "파일 선택 <b>+</b>"; elements.reviewPanel.hidden = true; elements.resultsPanel.hidden = true; updateUploadState(); $("checker").scrollIntoView({ behavior: "smooth" });
 });
