@@ -206,3 +206,5 @@ h1 em:after { height: 7px; background: #b9f44a; }
   .hero-stats span { min-width: 100%; border-right: 0; border-bottom: 1px solid #d7dee8; }
   .hero-stats span:last-child { border-bottom: 0; }
 }
+.pdf-only-row td { color: #c9342d; font-weight: 600; }
+.pdf-only-row .table-file { color: #c9342d; }
