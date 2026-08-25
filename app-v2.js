@@ -1,6 +1,7 @@
 /* global pdfjsLib, XLSX, fflate */
 const state = { pdfFiles: [], xlsxFile: null, pdfRecords: [], workbookRows: [], results: [] };
 const $ = (id) => document.getElementById(id);
+function setWorkflowStep(step) { document.querySelectorAll(".workflow-step").forEach((item, index) => item.classList.toggle("is-active", index === step - 1)); }
 const elements = {
   pdfInput: $("pdfInput"), xlsxInput: $("xlsxInput"), pdfDrop: $("pdfDrop"), xlsxDrop: $("xlsxDrop"),
   pdfState: $("pdfState"), xlsxState: $("xlsxState"), verifyButton: $("verifyButton"), processing: $("processing"),
@@ -67,7 +68,7 @@ bindDropZone(elements.xlsxInput, elements.xlsxDrop, "xlsx");
 elements.verifyButton.addEventListener("click", async () => {
   if (!state.pdfFiles.length || !state.xlsxFile) { updateUploadState(); elements.uploadHint.classList.add("attention"); setTimeout(() => elements.uploadHint.classList.remove("attention"), 1200); return; }
   if (!window.pdfjsLib || (!window.XLSX && !window.fflate)) return alert("문서 판독 라이브러리를 불러오지 못했습니다. 인터넷 연결 후 새로고침해주세요.");
-  elements.processing.hidden = false; elements.reviewPanel.hidden = true; elements.resultsPanel.hidden = true; elements.verifyButton.setAttribute("aria-busy", "true");
+  elements.processing.hidden = false; elements.reviewPanel.hidden = true; elements.resultsPanel.hidden = true; elements.verifyButton.setAttribute("aria-busy", "true"); setWorkflowStep(2);
   try {
     state.pdfRecords = [];
     for (let index = 0; index < state.pdfFiles.length; index += 1) {
@@ -238,7 +239,7 @@ elements.compareButton.addEventListener("click", () => {
   const records = [...elements.reviewList.querySelectorAll(".review-item")].map((item) => ({ fileName: state.pdfRecords[Number(item.dataset.index)].fileName, name: item.querySelector('[data-field="name"]').value.trim(), organization: item.querySelector('[data-field="organization"]').value.trim(), acquiredDate: item.querySelector('[data-field="acquiredDate"]').value, subscriberType: item.querySelector('[data-field="subscriberType"]').value }));
   const incomplete = records.filter((record) => !record.organization || !record.acquiredDate).length;
   if (incomplete) { elements.reviewMessage.textContent = `${incomplete}개 PDF의 사업장 명칭 또는 자격 취득일이 비어 있습니다.`; return; }
-  renderBatch(records.map((record) => compare(record, state.workbookRows)));
+  renderBatch(records.map((record) => compare(record, state.workbookRows))); setWorkflowStep(3);
   elements.resultsPanel.hidden = false; elements.resultsPanel.scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
@@ -297,7 +298,7 @@ function normalizeDate(value) { if (!value) return ""; if (value instanceof Date
 function escapeHtml(value) { return String(value).replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char])); }
 
 elements.resetButton.addEventListener("click", () => {
-  state.pdfFiles = []; state.xlsxFile = null; state.pdfRecords = []; state.workbookRows = []; state.results = [];
+  state.pdfFiles = []; state.xlsxFile = null; state.pdfRecords = []; state.workbookRows = []; state.results = []; setWorkflowStep(1);
   elements.pdfInput.value = ""; elements.xlsxInput.value = ""; elements.pdfDrop.classList.remove("ready", "error"); elements.xlsxDrop.classList.remove("ready", "error");
   elements.pdfState.innerHTML = "파일 선택 <b>+</b>"; elements.xlsxState.innerHTML = "파일 선택 <b>+</b>"; elements.reviewPanel.hidden = true; elements.resultsPanel.hidden = true; updateUploadState(); $("checker").scrollIntoView({ behavior: "smooth" });
 });

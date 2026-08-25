@@ -212,3 +212,13 @@ h1 em:after { height: 7px; background: #b9f44a; }
 .download-button { border: 1px solid var(--forest); background: white; color: var(--forest); padding: 12px 16px; font-weight: 700; cursor: pointer; }
 .download-button:hover { background: var(--forest); color: white; }
 .download-button span { margin-left: 10px; color: var(--mint); }
+.workflow-steps { display: flex; align-items: center; gap: 12px; margin: -8px 0 46px; padding: 14px 16px; background: #f6f8f3; border: 1px solid #e1e7df; }
+.workflow-step { display: grid; grid-template-columns: 30px 1fr; column-gap: 9px; align-items: center; min-width: 150px; color: #8a958e; }
+.workflow-step span { grid-row: span 2; width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid #c8d1c9; border-radius: 50%; font-size: 11px; font-weight: 700; }
+.workflow-step strong { font-size: 13px; color: #66736a; }
+.workflow-step small { font-size: 11px; color: #9aa49d; margin-top: 2px; }
+.workflow-step.is-active span { background: var(--forest); border-color: var(--forest); color: var(--mint); }
+.workflow-step.is-active strong { color: var(--forest); }
+.workflow-steps>i { height: 1px; flex: 1; background: #d4dbd4; max-width: 90px; }
+.review-head>p { color: var(--muted); font-size: 13px; line-height: 1.7; margin: 0; }
+@media (max-width: 620px) { .workflow-steps { gap: 7px; margin-bottom: 30px; padding: 10px 8px; } .workflow-step { min-width: 0; grid-template-columns: 25px 1fr; column-gap: 6px; } .workflow-step span { width: 25px; height: 25px; font-size: 10px; } .workflow-step strong { font-size: 11px; } .workflow-step small, .workflow-steps>i { display: none; } }
